@@ -1,0 +1,18 @@
+{
+  "name": "voice-agent",
+  "version": "1.0.0",
+  "description": "AI-powered voice agent for Housing.com property recommendations",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "cd backend && npm install && npm start",
+    "dev": "cd backend && npm run dev",
+    "install-backend": "cd backend && npm install",
+    "install-frontend": "cd frontend && npm install"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": ["voice-agent", "ai", "property", "twilio", "openai"],
+  "author": "",
+  "license": "MIT"
+}
