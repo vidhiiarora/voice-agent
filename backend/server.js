@@ -21,11 +21,13 @@ const aiConversation = require('./aiConversation');
 const propertyParser = require('./propertyParser');
 const salesAgent = require('./salesAgent');
 const exotelService = require('./exotelService');
+const twilioService = require('./twilioService');
 const websocketHandler = require('./websocketHandler');
 const cors = require('cors');
 
 const app = express();
 app.use(bodyParser.json({limit: '10mb'}));
+app.use(bodyParser.urlencoded({extended: true, limit: '10mb'}));
 app.use(cors());
 
 // Simple healthcheck
@@ -456,6 +458,220 @@ app.post('/exotel/call-connected', (req, res) => {
       <Say voice="alice">Sorry, there was a technical issue. Please try calling back.</Say>
       <Hangup/>
     </Response>`);
+  }
+});
+
+// Twilio voice call endpoints
+app.post('/twilio/initiate-call', async (req, res) => {
+  try {
+    const { sessionId, customerPhone, customerName, propertyInfo } = req.body;
+    
+    if (!sessionId || !customerPhone) {
+      return res.status(400).json({ error: 'sessionId and customerPhone are required' });
+    }
+
+    console.log(`Initiating Twilio voice call for session ${sessionId} to ${customerPhone}`);
+
+    // Store session data for the call
+    memory.setPropertyInfo(sessionId, propertyInfo);
+    memory.setCustomerInfo(sessionId, { name: customerName, phone: customerPhone });
+    memory.updateConversationState(sessionId, 'initiating_voice_call');
+
+    // Initiate the call via Twilio
+    const callResult = await twilioService.initiateCall(customerPhone, sessionId, propertyInfo);
+    
+    if (callResult.success) {
+      // Store call info in session
+      memory.setCallInfo(sessionId, {
+        callSid: callResult.callSid,
+        status: callResult.status,
+        customerPhone,
+        provider: 'twilio',
+        initiatedAt: new Date().toISOString()
+      });
+
+      res.json({
+        success: true,
+        callSid: callResult.callSid,
+        status: callResult.status,
+        message: 'Twilio voice call initiated successfully'
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        error: callResult.error
+      });
+    }
+
+  } catch (error) {
+    console.error('Error initiating Twilio call:', error);
+    res.status(500).json({ error: error.message || 'Failed to initiate voice call' });
+  }
+});
+
+// Twilio voice webhook - handles incoming call or call initiation
+app.post('/twilio/voice-webhook/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    console.log(`🔵 Twilio voice webhook called for session ${sessionId}`);
+    console.log('📞 Request body:', JSON.stringify(req.body, null, 2));
+
+    // Get call info and property details
+    const session = memory.get(sessionId);
+    console.log('🗃️ Session data:', session ? 'Found' : 'Not found');
+    
+    const callData = twilioService.getCallStatus(sessionId);
+    console.log('📋 Call data:', callData ? 'Found' : 'Not found');
+    
+    let welcomeMessage = "Hello! I'm Sarah from Housing.com. Thank you for your interest in our property.";
+    
+    if (session && session.propertyInfo) {
+      welcomeMessage += ` I'm calling about the ${session.propertyInfo.bhk || ''} property in ${session.propertyInfo.location || 'your preferred area'}. How can I help you today?`;
+    } else {
+      welcomeMessage += " I'm here to help you find the perfect property. What are you looking for?";
+    }
+    
+    console.log('🗣️ Welcome message:', welcomeMessage);
+    
+    const twimlResponse = twilioService.generateVoiceResponse(sessionId, welcomeMessage);
+    console.log('📝 TwiML response:', twimlResponse);
+    
+    res.set('Content-Type', 'text/xml');
+    res.send(twimlResponse);
+    
+  } catch (error) {
+    console.error('❌ Twilio voice webhook error:', error);
+    const twimlResponse = twilioService.generateVoiceResponse(req.params.sessionId, "Sorry, I'm having technical difficulties. Please try again later.");
+    res.set('Content-Type', 'text/xml');
+    res.send(twimlResponse);
+  }
+});
+
+// Twilio gather webhook - processes user speech input
+app.post('/twilio/gather-webhook/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const speechResult = req.body.SpeechResult || req.body.Digits || '';
+    
+    console.log(`Twilio gather webhook for session ${sessionId}, speech: "${speechResult}"`);
+    
+    if (!speechResult) {
+      const twimlResponse = twilioService.generateVoiceResponse(sessionId, "I didn't catch that. Could you please repeat what you said?");
+      res.set('Content-Type', 'text/xml');
+      res.send(twimlResponse);
+      return;
+    }
+    
+    // Process the speech through AI
+    const twimlResponse = await twilioService.processUserSpeech(speechResult, sessionId);
+    
+    res.set('Content-Type', 'text/xml');
+    res.send(twimlResponse);
+    
+  } catch (error) {
+    console.error('Twilio gather webhook error:', error);
+    const twimlResponse = twilioService.generateVoiceResponse(req.params.sessionId, "I'm sorry, I'm having trouble processing your request. Please try again.");
+    res.set('Content-Type', 'text/xml');
+    res.send(twimlResponse);
+  }
+});
+
+// Twilio call status webhook
+app.post('/twilio/status-webhook/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { CallStatus, CallSid, CallDuration } = req.body;
+    
+    console.log(`Twilio status webhook for session ${sessionId}:`, req.body);
+    
+    // Update call status in our service
+    twilioService.updateCallStatus(sessionId, CallStatus, CallSid);
+    
+    // Update session memory
+    const session = memory.get(sessionId);
+    if (session.callInfo) {
+      session.callInfo.status = CallStatus;
+      session.callInfo.duration = CallDuration;
+      session.callInfo.lastUpdate = new Date().toISOString();
+      memory.setCallInfo(sessionId, session.callInfo);
+    }
+    
+    // Update conversation state based on call status
+    if (CallStatus === 'in-progress') {
+      memory.updateConversationState(sessionId, 'voice_call_active');
+    } else if (CallStatus === 'completed' || CallStatus === 'failed') {
+      memory.updateConversationState(sessionId, 'call_ended');
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Twilio status webhook error:', error);
+    res.status(200).send('OK'); // Always return OK to Twilio
+  }
+});
+
+// Twilio recording webhook
+app.post('/twilio/recording-webhook/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { RecordingUrl, RecordingSid, CallSid } = req.body;
+    
+    console.log(`Twilio recording webhook for session ${sessionId}:`, req.body);
+    
+    // Store recording info in session
+    const session = memory.get(sessionId);
+    if (session.callInfo) {
+      session.callInfo.recordingUrl = RecordingUrl;
+      session.callInfo.recordingSid = RecordingSid;
+      memory.setCallInfo(sessionId, session.callInfo);
+    }
+    
+    res.status(200).send('OK');
+  } catch (error) {
+    console.error('Twilio recording webhook error:', error);
+    res.status(200).send('OK'); // Always return OK to Twilio
+  }
+});
+
+// Get Twilio call status endpoint
+app.get('/twilio/call-status/:sessionId', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const callData = twilioService.getCallStatus(sessionId);
+    
+    if (callData) {
+      res.json({
+        success: true,
+        status: callData.status,
+        callSid: callData.callSid,
+        transcript: twilioService.getCallTranscript(sessionId)
+      });
+    } else {
+      res.status(404).json({
+        success: false,
+        error: 'Call data not found'
+      });
+    }
+  } catch (error) {
+    console.error('Error getting Twilio call status:', error);
+    res.status(500).json({ error: error.message || 'Failed to get call status' });
+  }
+});
+
+// End Twilio call endpoint
+app.post('/twilio/end-call/:sessionId', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const callData = await twilioService.endCall(sessionId);
+    
+    res.json({
+      success: true,
+      message: 'Call ended successfully',
+      callData
+    });
+  } catch (error) {
+    console.error('Error ending Twilio call:', error);
+    res.status(500).json({ error: error.message || 'Failed to end call' });
   }
 });
 
