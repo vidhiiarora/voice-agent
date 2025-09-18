@@ -1,0 +1,690 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Housing.com AI Sales Agent</title>
+    <style>
+      body { 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        padding: 20px; 
+        max-width: 1200px; 
+        margin: auto; 
+        background: #f5f7fa;
+      }
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      .header h1 { color: #2c3e50; margin: 0; }
+      .header p { color: #7f8c8d; margin: 10px 0 0 0; }
+      
+      .setup-panel {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+      }
+      
+      .setup-panel.hidden {
+        display: none;
+      }
+      
+      .chat-container {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+      }
+      
+      .chat-container.hidden {
+        display: none;
+      }
+      
+      #chat { 
+        flex: 1;
+        border: 1px solid #ddd; 
+        height: 400px; 
+        overflow: auto; 
+        padding: 15px; 
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      
+      .property-panel {
+        width: 350px;
+        background: white;
+        border-radius: 10px;
+        padding: 15px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        height: 400px;
+        overflow: auto;
+      }
+      
+      .property-panel h3 {
+        color: #2c3e50;
+        margin: 0 0 15px 0;
+        font-size: 16px;
+      }
+      
+      .property-info {
+        margin: 8px 0;
+        padding: 8px;
+        background: #ecf0f1;
+        border-radius: 5px;
+        font-size: 14px;
+      }
+      
+      .property-label {
+        font-weight: bold;
+        color: #34495e;
+      }
+      
+      .msg { 
+        margin: 15px 0; 
+        padding: 10px;
+        border-radius: 8px;
+        max-width: 80%;
+      }
+      .user { 
+        background: #e3f2fd;
+        margin-left: auto;
+        text-align: right;
+      }
+      .bot { 
+        background: #f1f8e9;
+        margin-right: auto;
+      }
+      
+      .controls {
+        text-align: center;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      }
+      
+      .controls.hidden {
+        display: none;
+      }
+      
+      input[type="text"], input[type="url"], input[type="tel"] {
+        width: 100%;
+        padding: 12px;
+        margin: 10px 0;
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+      
+      input[type="text"]:focus, input[type="url"]:focus, input[type="tel"]:focus {
+        border-color: #3498db;
+        outline: none;
+      }
+      
+      button { 
+        padding: 12px 20px; 
+        margin: 10px; 
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 16px;
+        transition: background-color 0.2s;
+      }
+      
+      .primary-btn {
+        background: #27ae60;
+        color: white;
+      }
+      
+      .primary-btn:hover {
+        background: #219a52;
+      }
+      
+      .secondary-btn {
+        background: #3498db;
+        color: white;
+      }
+      
+      .secondary-btn:hover {
+        background: #2980b9;
+      }
+      
+      .danger-btn {
+        background: #e74c3c;
+        color: white;
+      }
+      
+      .danger-btn:hover {
+        background: #c0392b;
+      }
+      
+      button:disabled {
+        background: #bdc3c7;
+        cursor: not-allowed;
+      }
+      
+      .status {
+        text-align: center;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      
+      .status.listening {
+        background: #d4edda;
+        color: #155724;
+      }
+      
+      .status.processing {
+        background: #fff3cd;
+        color: #856404;
+      }
+      
+      .summary-panel {
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-top: 20px;
+      }
+      
+      .summary-panel.hidden {
+        display: none;
+      }
+      
+      .whatsapp-link {
+        background: #25d366;
+        color: white;
+        text-decoration: none;
+        padding: 15px 25px;
+        border-radius: 8px;
+        display: inline-block;
+        font-weight: bold;
+        margin-top: 15px;
+      }
+      
+      .whatsapp-link:hover {
+        background: #128c7e;
+        color: white;
+        text-decoration: none;
+      }
+      
+      .form-group {
+        margin: 15px 0;
+        text-align: left;
+      }
+      
+      .form-group label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+        color: #2c3e50;
+      }
+      
+      .loading {
+        text-align: center;
+        color: #7f8c8d;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>🏠 Housing.com AI Sales Agent</h1>
+      <p>Professional property consultation calls with AI-powered sales assistant</p>
+    </div>
+
+    <!-- Setup Panel -->
+    <div class="setup-panel" id="setupPanel">
+      <h2>📋 Call Setup</h2>
+      <div class="form-group">
+        <label for="propertyUrl">Property URL (Housing.com link):</label>
+        <input type="url" id="propertyUrl" placeholder="https://housing.com/in/buy/property-details/..." required>
+      </div>
+      
+      <div class="form-group">
+        <label for="customerPhone">Customer Phone Number:</label>
+        <input type="tel" id="customerPhone" placeholder="+91 98765 43210" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="customerName">Customer Name (Optional):</label>
+        <input type="text" id="customerName" placeholder="Mr. Sharma">
+      </div>
+      
+      <button class="primary-btn" id="startCallBtn">💬 Start Chat Mode</button>
+      <button class="primary-btn" id="startVoiceCallBtn" style="background: #e74c3c; margin-left: 10px;">📞 Start Real Voice Call</button>
+      <div id="setupStatus" class="loading" style="display: none;">Analyzing property details...</div>
+      <div id="voiceCallStatus" class="loading" style="display: none;">Initiating voice call...</div>
+    </div>
+
+    <!-- Chat Interface -->
+    <div class="chat-container hidden" id="chatContainer">
+      <div id="chat"></div>
+      <div class="property-panel">
+        <h3>🏡 Property Details</h3>
+        <div id="propertyDetails"></div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls hidden" id="controls">
+      <div id="status" class="status" style="display: none;"></div>
+      <button id="startBtn" class="primary-btn">🎤 Start Speaking</button>
+      <button id="stopBtn" class="danger-btn" disabled>⏹️ Stop</button>
+      <button id="endCallBtn" class="secondary-btn">📞 End Call</button>
+    </div>
+
+    <!-- Summary Panel -->
+    <div class="summary-panel hidden" id="summaryPanel">
+      <h2>📝 Call Summary</h2>
+      <div id="callSummary"></div>
+      <h3>📱 Share Summary</h3>
+      <p>Click the button below to send the call summary via WhatsApp:</p>
+      <a id="whatsappLink" class="whatsapp-link" href="#" target="_blank">
+        💬 Send WhatsApp Summary
+      </a>
+    </div>
+
+    <script>
+      const setupPanel = document.getElementById('setupPanel');
+      const chatContainer = document.getElementById('chatContainer');
+      const controls = document.getElementById('controls');
+      const summaryPanel = document.getElementById('summaryPanel');
+      
+      const propertyUrlInput = document.getElementById('propertyUrl');
+      const customerPhoneInput = document.getElementById('customerPhone');
+      const customerNameInput = document.getElementById('customerName');
+      const startCallBtn = document.getElementById('startCallBtn');
+      const startVoiceCallBtn = document.getElementById('startVoiceCallBtn');
+      const setupStatus = document.getElementById('setupStatus');
+      const voiceCallStatus = document.getElementById('voiceCallStatus');
+      
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const endCallBtn = document.getElementById('endCallBtn');
+      const chat = document.getElementById('chat');
+      const propertyDetails = document.getElementById('propertyDetails');
+      const status = document.getElementById('status');
+      const callSummary = document.getElementById('callSummary');
+      const whatsappLink = document.getElementById('whatsappLink');
+      
+      const backendUrl = (window.location.hostname === 'localhost') ? 'http://localhost:3001' : '';
+
+      let recognition;
+      let sessionId = 'sales-session-' + Date.now();
+      let propertyInfo = {};
+      let callStarted = false;
+      let conversationLog = [];
+
+      function showStatus(message, type = '') {
+        status.textContent = message;
+        status.className = 'status ' + type;
+        status.style.display = 'block';
+      }
+
+      function hideStatus() {
+        status.style.display = 'none';
+      }
+
+      function appendMessage(who, text) {
+        const el = document.createElement('div');
+        el.className = 'msg ' + (who === 'user' ? 'user' : 'bot');
+        el.innerHTML = `<strong>${who === 'user' ? 'Customer' : 'Agent'}:</strong> ${text}`;
+        chat.appendChild(el);
+        chat.scrollTop = chat.scrollHeight;
+        
+        // Log for summary
+        conversationLog.push({ who, text, timestamp: new Date().toISOString() });
+      }
+
+      function displayPropertyInfo(info) {
+        propertyDetails.innerHTML = '';
+        if (!info || Object.keys(info).length === 0) {
+          propertyDetails.innerHTML = '<p class="loading">Property details will appear here...</p>';
+          return;
+        }
+
+        const infoMap = {
+          title: { label: 'Property Title', icon: '🏠' },
+          price: { label: 'Price', icon: '💰' },
+          location: { label: 'Location', icon: '📍' },
+          bhk: { label: 'Configuration', icon: '🛏️' },
+          area: { label: 'Area', icon: '📐' },
+          type: { label: 'Property Type', icon: '🏢' },
+          amenities: { label: 'Amenities', icon: '✨' }
+        };
+
+        for (const [key, value] of Object.entries(info)) {
+          if (value && key !== 'url') {
+            const config = infoMap[key] || { label: key, icon: '📝' };
+            const el = document.createElement('div');
+            el.className = 'property-info';
+            el.innerHTML = `<span class="property-label">${config.icon} ${config.label}:</span> ${value}`;
+            propertyDetails.appendChild(el);
+          }
+        }
+      }
+
+      async function parsePropertyUrl(url) {
+        try {
+          setupStatus.style.display = 'block';
+          setupStatus.textContent = 'Analyzing property details...';
+          
+          const response = await fetch(backendUrl + '/parse-property', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            propertyInfo = data.property;
+            displayPropertyInfo(propertyInfo);
+            return true;
+          } else {
+            throw new Error(data.error || 'Failed to parse property');
+          }
+        } catch (error) {
+          console.error('Property parsing error:', error);
+          setupStatus.textContent = 'Error analyzing property. Using manual input.';
+          propertyInfo = {
+            title: 'Property from ' + url,
+            url: url,
+            location: 'To be discussed',
+            price: 'To be discussed'
+          };
+          displayPropertyInfo(propertyInfo);
+          return false;
+        } finally {
+          setTimeout(() => {
+            setupStatus.style.display = 'none';
+          }, 2000);
+        }
+      }
+
+      async function sendTextToAgent(text) {
+        appendMessage('user', text);
+        showStatus('Processing...', 'processing');
+        
+        try {
+          const response = await fetch(backendUrl + '/sales-chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              sessionId, 
+              text,
+              propertyInfo,
+              customerPhone: customerPhoneInput.value,
+              customerName: customerNameInput.value
+            })
+          });
+          
+          const data = await response.json();
+          
+          appendMessage('bot', data.replyText || 'I understand.');
+          
+          // Handle audio
+          if (data.audio && data.audio.type === 'ssml_fallback') {
+            const utter = new SpeechSynthesisUtterance(data.audio.text);
+            speechSynthesis.speak(utter);
+          }
+          
+          // Check if call should end
+          if (data.callEnded) {
+            endCall(data.summary);
+          }
+          
+          hideStatus();
+        } catch (err) {
+          appendMessage('bot', 'Error: ' + (err.message || err));
+          hideStatus();
+        }
+      }
+
+      function endCall(summary) {
+        if (recognition) recognition.stop();
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+        
+        // Generate call summary
+        generateCallSummary(summary);
+        
+        // Show summary panel
+        summaryPanel.classList.remove('hidden');
+      }
+
+      function generateCallSummary(aiSummary) {
+        const customerName = customerNameInput.value || 'Customer';
+        const customerPhone = customerPhoneInput.value;
+        
+        const summaryHtml = `
+          <div class="property-info">
+            <span class="property-label">📞 Customer:</span> ${customerName} (${customerPhone})
+          </div>
+          <div class="property-info">
+            <span class="property-label">🏡 Property:</span> ${propertyInfo.title || propertyInfo.url}
+          </div>
+          <div class="property-info">
+            <span class="property-label">📍 Location:</span> ${propertyInfo.location || 'N/A'}
+          </div>
+          <div class="property-info">
+            <span class="property-label">💰 Price:</span> ${propertyInfo.price || 'N/A'}
+          </div>
+          <div class="property-info">
+            <span class="property-label">📝 Call Summary:</span> ${aiSummary || 'Call completed successfully.'}
+          </div>
+          <div class="property-info">
+            <span class="property-label">🕒 Call Duration:</span> ${Math.round((Date.now() - parseInt(sessionId.split('-')[2])) / 60000)} minutes
+          </div>
+        `;
+        
+        callSummary.innerHTML = summaryHtml;
+        
+        // Generate WhatsApp link
+        const whatsappMessage = `
+Housing.com Sales Call Summary
+
+Customer: ${customerName}
+Phone: ${customerPhone}
+Property: ${propertyInfo.title || propertyInfo.url}
+Location: ${propertyInfo.location || 'N/A'}
+Price: ${propertyInfo.price || 'N/A'}
+
+Call Summary: ${aiSummary || 'Call completed successfully.'}
+
+Thank you for your interest in this property!
+        `.trim();
+        
+        const whatsappUrl = `https://wa.me/${customerPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(whatsappMessage)}`;
+        whatsappLink.href = whatsappUrl;
+      }
+
+      // Event Listeners
+      startCallBtn.onclick = async () => {
+        if (!propertyUrlInput.value || !customerPhoneInput.value) {
+          alert('Please provide both property URL and customer phone number.');
+          return;
+        }
+        
+        // Parse property URL
+        await parsePropertyUrl(propertyUrlInput.value);
+        
+        // Hide setup, show chat
+        setupPanel.classList.add('hidden');
+        chatContainer.classList.remove('hidden');
+        controls.classList.remove('hidden');
+        
+        callStarted = true;
+        
+        // Start the conversation
+        setTimeout(() => {
+          sendTextToAgent('Hello');
+        }, 1000);
+      };
+
+      startBtn.onclick = () => {
+        window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!window.SpeechRecognition) {
+          alert('Your browser does not support Web Speech API. Please use Chrome.');
+          return;
+        }
+        
+        recognition = new window.SpeechRecognition();
+        recognition.lang = 'en-IN';
+        recognition.interimResults = false;
+        recognition.continuous = false;
+
+        recognition.onstart = () => {
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          showStatus('🎤 Listening... Speak now', 'listening');
+        };
+        
+        recognition.onresult = (e) => {
+          const text = e.results[0][0].transcript;
+          hideStatus();
+          sendTextToAgent(text);
+        };
+        
+        recognition.onerror = (e) => {
+          console.error('Speech error', e);
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          hideStatus();
+          if (e.error === 'no-speech') {
+            showStatus('No speech detected. Please try again.', 'processing');
+            setTimeout(hideStatus, 3000);
+          }
+        };
+        
+        recognition.onend = () => {
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          hideStatus();
+        };
+        
+        recognition.start();
+      };
+
+      stopBtn.onclick = () => {
+        if (recognition) recognition.stop();
+      };
+
+      endCallBtn.onclick = () => {
+        if (confirm('Are you sure you want to end this call?')) {
+          endCall('Call ended by agent.');
+        }
+      };
+
+      // Voice Call Button Event Listener
+      startVoiceCallBtn.onclick = async () => {
+        if (!propertyUrlInput.value || !customerPhoneInput.value) {
+          alert('Please provide both property URL and customer phone number.');
+          return;
+        }
+        
+        try {
+          // Parse property URL first
+          await parsePropertyUrl(propertyUrlInput.value);
+          
+          // Show voice call status
+          voiceCallStatus.style.display = 'block';
+          voiceCallStatus.textContent = 'Initiating real voice call to customer...';
+          startVoiceCallBtn.disabled = true;
+          
+          // Store session data for the call
+          const callData = {
+            sessionId,
+            customerPhone: customerPhoneInput.value,
+            customerName: customerNameInput.value,
+            propertyUrl: propertyUrlInput.value,
+            propertyInfo
+          };
+          
+          // Initiate Exotel call
+          const response = await fetch(backendUrl + '/exotel/initiate-call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(callData)
+          });
+          
+          const data = await response.json();
+          
+          if (data.success) {
+            voiceCallStatus.textContent = 'Voice call initiated! Customer will receive a call shortly...';
+            voiceCallStatus.style.color = '#27ae60';
+            
+            // Hide setup and show chat interface for monitoring
+            setTimeout(() => {
+              setupPanel.classList.add('hidden');
+              chatContainer.classList.remove('hidden');
+              
+              // Show voice call status in chat
+              appendMessage('bot', 'Real voice call initiated to ' + customerPhoneInput.value + '. The customer will receive a call and be connected to our AI assistant.');
+              
+              // Update call status periodically
+              monitorVoiceCall(data.callSid);
+            }, 2000);
+            
+          } else {
+            throw new Error(data.error || 'Failed to initiate voice call');
+          }
+          
+        } catch (error) {
+          console.error('Voice call initiation error:', error);
+          voiceCallStatus.textContent = 'Error: ' + error.message;
+          voiceCallStatus.style.color = '#e74c3c';
+          startVoiceCallBtn.disabled = false;
+          
+          setTimeout(() => {
+            voiceCallStatus.style.display = 'none';
+            voiceCallStatus.style.color = '#7f8c8d';
+          }, 5000);
+        }
+      };
+
+      // Monitor voice call progress
+      async function monitorVoiceCall(callSid) {
+        const maxAttempts = 30; // 5 minutes
+        let attempts = 0;
+        
+        const checkStatus = async () => {
+          try {
+            const response = await fetch(backendUrl + '/exotel/call-status/' + callSid);
+            const data = await response.json();
+            
+            if (data.status === 'completed' || data.status === 'failed') {
+              appendMessage('bot', 'Voice call ended. Status: ' + data.status);
+              if (data.summary) {
+                endCall(data.summary);
+              }
+              return;
+            }
+            
+            attempts++;
+            if (attempts < maxAttempts) {
+              setTimeout(checkStatus, 10000); // Check every 10 seconds
+            }
+            
+          } catch (error) {
+            console.error('Error monitoring call:', error);
+          }
+        };
+        
+        setTimeout(checkStatus, 5000); // Start checking after 5 seconds
+      }
+
+      // Initialize property display
+      displayPropertyInfo({});
+    </script>
+  </body>
+</html>
